@@ -1,0 +1,115 @@
+{% extends 'app/base.html' %}
+{% load static %}
+
+{% block title %}FleetFlow — Trip Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="breadcrumb"><a href="{% url 'dashboard' %}">FleetFlow</a><span class="sep">›</span><span>Trips</span></div>
+    <div class="page-header-row">
+        <div>
+            <h1>Trip Management</h1>
+            <p class="page-subtitle">Standardized RDBMS-backed trip workflows</p>
+        </div>
+        <button class="btn btn-primary" onclick="openCreateTrip()">+ Create Trip</button>
+    </div>
+</div>
+
+<div class="tabs" style="margin-bottom:20px">
+    <a href="?status=All" class="tab {% if not request.GET.status or request.GET.status == 'All' %}active{% endif %}">All <span class="tab-badge">{{ all_trips_count }}</span></a>
+    <a href="?status=Draft" class="tab {% if request.GET.status == 'Draft' %}active{% endif %}">Draft <span class="tab-badge">{{ draft_count }}</span></a>
+    <a href="?status=Dispatched" class="tab {% if request.GET.status == 'Dispatched' %}active{% endif %}">Dispatched <span class="tab-badge">{{ dispatched_count }}</span></a>
+    <a href="?status=Completed" class="tab {% if request.GET.status == 'Completed' %}active{% endif %}">Completed <span class="tab-badge">{{ completed_count }}</span></a>
+</div>
+
+<div class="glass-card" style="padding:24px">
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Trip ID</th>
+                    <th>Vehicle</th>
+                    <th>Driver</th>
+                    <th>Route</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Revenue</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in trips %}
+                <tr>
+                    <td><span class="cell-mono">{{ t.tid }}</span></td>
+                    <td><span class="cell-primary">{{ t.vehicle.name }}</span></td>
+                    <td>{{ t.driver.name }}</td>
+                    <td>{{ t.origin }} → {{ t.destination }}</td>
+                    <td>
+                        <span class="status-pill 
+                            {% if t.status == 'Draft' %}status-draft
+                            {% elif t.status == 'Dispatched' %}status-ontrip
+                            {% elif t.status == 'Completed' %}status-available
+                            {% endif %}">
+                            {{ t.status }}
+                        </span>
+                    </td>
+                    <td>{{ t.date }}</td>
+                    <td><span class="cell-mono">₹{{ t.revenue }}</span></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" style="text-align:center;padding:40px;">No trips found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<template id="trip-modal-template">
+    <form id="addTripForm" method="POST" action="{% url 'trips' %}" class="form-grid">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Vehicle</label>
+            <select name="vehicle" class="form-select" required>
+                {% for v in available_vehicles %}
+                <option value="{{ v.id }}">{{ v.name }} ({{ v.plate }})</option>
+                {% empty %}
+                <option disabled>No Available Vehicles</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Driver</label>
+            <select name="driver" class="form-select" required>
+                {% for d in available_drivers %}
+                <option value="{{ d.id }}">{{ d.name }}</option>
+                {% empty %}
+                <option disabled>No Available Drivers</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group"><label>Origin</label><input type="text" name="origin" required class="form-input"></div>
+        <div class="form-group"><label>Destination</label><input type="text" name="destination" required class="form-input"></div>
+        <div class="form-group">
+            <label>Region</label>
+            <select name="region" class="form-select" required>
+                {% for r in regions %}
+                <option value="{{ r.id }}">{{ r.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group"><label>Date</label><input type="date" name="date" required class="form-input"></div>
+        <div class="form-group"><label>Cargo (kg)</label><input type="number" name="cargo_weight" required class="form-input"></div>
+        <div class="form-group"><label>Revenue</label><input type="number" name="revenue" class="form-input"></div>
+    </form>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    window.openCreateTrip = function () {
+        const body = document.getElementById('trip-modal-template').innerHTML;
+        openModal('Plan New Trip', body,
+            `<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+             <button class="btn btn-primary" onclick="document.getElementById('addTripForm').submit()">Save Trip</button>`);
+    };
+</script>
+{% endblock %}

@@ -1,0 +1,226 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block title %}FleetFlow — Command Center{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="breadcrumb"><a href="{% url 'dashboard' %}">FleetFlow</a><span class="sep">›</span><span>Command
+            Center</span></div>
+    <div class="page-header-row">
+        <div>
+            <h1>Command Center</h1>
+            <p class="page-subtitle" id="greeting">Good day, {{ request.user.username }}!</p>
+        </div>
+    </div>
+</div>
+<div class="grid-4" id="kpi-row" style="margin-bottom:24px">
+    <div class="glass-card kpi-card">
+        <div class="kpi-icon" style="background:rgba(37,99,235,0.1);color:var(--blue)">
+            <i data-feather="truck"></i>
+        </div>
+        <div>
+            <div class="kpi-label">Active Fleet</div>
+            <div class="kpi-value" data-count="{{ on_trip_count }}">{{ on_trip_count }}</div>
+            <div class="kpi-trend">{{ on_trip_count }} of {{ total_count }} on trip</div>
+        </div>
+    </div>
+    <div class="glass-card kpi-card">
+        <div class="kpi-icon" style="background:rgba(234,88,12,0.1);color:var(--orange)">
+            <i data-feather="tool"></i>
+        </div>
+        <div>
+            <div class="kpi-label">Maint. Alerts</div>
+            <div class="kpi-value" data-count="{{ in_shop_count }}">{{ in_shop_count }}</div>
+            <div class="kpi-trend">{{ in_shop_count }} vehicles in shop</div>
+        </div>
+    </div>
+    <div class="glass-card kpi-card">
+        <div class="kpi-icon" style="background:rgba(22,163,74,0.1);color:var(--green)">
+            <i data-feather="activity"></i>
+        </div>
+        <div>
+            <div class="kpi-label">Utilization Rate</div>
+            <div class="kpi-value" data-count="{{ util_rate }}">{{ util_rate }}%</div>
+            <div class="kpi-trend">% of fleet assigned</div>
+        </div>
+    </div>
+    <div class="glass-card kpi-card">
+        <div class="kpi-icon" style="background:rgba(124,58,237,0.1);color:var(--purple)">
+            <i data-feather="package"></i>
+        </div>
+        <div>
+            <div class="kpi-label">Pending Cargo</div>
+            <div class="kpi-value" data-count="{{ pending_cargo_count }}">{{ pending_cargo_count }}</div>
+            <div class="kpi-trend">{{ pending_cargo_weight|floatformat:"0" }} kg waiting</div>
+        </div>
+    </div>
+</div>
+<div class="glass-card" style="padding:16px 20px;margin-bottom:24px">
+    <form method="GET" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+        <div class="filter-group">
+            <span class="filter-group-label">Type:</span>
+            <select name="type" class="filter-select" onchange="this.form.submit()">
+                <option value="All">All Types</option>
+                {% for t in vehicle_types %}
+                <option value="{{ t.name }}" {% if request.GET.type == t.name %}selected{% endif %}>{{ t.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <span class="filter-group-label">Region:</span>
+            <select name="region" class="filter-select" onchange="this.form.submit()">
+                <option value="All">All Regions</option>
+                {% for r in regions %}
+                <option value="{{ r.name }}" {% if request.GET.region == r.name %}selected{% endif %}>{{ r.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+</div>
+<div class="grid-2" style="margin-bottom:24px">
+    <div class="glass-card chart-card">
+        <h3>Fleet Status Overview</h3>
+        <div class="chart-container"><canvas id="fleet-donut"></canvas></div>
+    </div>
+    <div class="glass-card chart-card">
+        <h3>Weekly Trip Activity</h3>
+        <div class="chart-container"><canvas id="trip-bar"></canvas></div>
+    </div>
+</div>
+<div class="glass-card" style="padding:24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+            <h3 style="margin:0">Live Fleet Feed</h3>
+            <p style="font-size:12px;color:var(--text-muted);margin-top:2px">Server-side rendered real-time data</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px"><span class="live-dot"></span><span
+                style="font-size:12px;color:var(--green)">Live</span></div>
+    </div>
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Vehicle</th>
+                    <th>Plate</th>
+                    <th>Type</th>
+                    <th>Region</th>
+                    <th>Status</th>
+                    <th>Current/Next Trip</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in live_fleet %}
+                <tr>
+                    <td><span class="cell-primary">{{ v.name }}</span></td>
+                    <td><span class="cell-mono">{{ v.plate }}</span></td>
+                    <td>{{ v.vehicle_type.name }}</td>
+                    <td>{{ v.region.name }}</td>
+                    <td>
+                        {% if v.status == 'Available' %}<span class="status-pill status-available">Available</span>
+                        {% elif v.status == 'On Trip' %}<span class="status-pill status-ontrip">On Trip</span>
+                        {% elif v.status == 'In Shop' %}<span class="status-pill status-inshop">In Shop</span>
+                        {% else %}<span class="status-pill">{{ v.status }}</span>{% endif %}
+                    </td>
+                    <td>
+                        {% with latest_trip=v.trips.all|first %}
+                        {% if latest_trip %}{{ latest_trip.origin }} → {{ latest_trip.destination }}{% else %}<span
+                            style="color:var(--text-muted)">—</span>{% endif %}
+                        {% endwith %}
+                    </td>
+                    <td><a href="{% url 'vehicles' %}" class="btn btn-sm btn-ghost">View</a></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">No vehicles matches
+                        filters</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+    (function () {
+        document.querySelectorAll('.kpi-value').forEach(el => {
+            const target = parseFloat(el.dataset.count);
+            if (!isNaN(target)) {
+                let current = 0; const step = target / 30;
+                const timer = setInterval(() => {
+                    current += step;
+                    if (current >= target) {
+                        el.textContent = (target % 1 === 0 ? target : target.toFixed(1)) + (el.textContent.includes('%') ? '%' : '');
+                        clearInterval(timer);
+                    } else {
+                        el.textContent = (current % 1 === 0 ? Math.floor(current) : current.toFixed(1)) + (el.textContent.includes('%') ? '%' : '');
+                    }
+                }, 20);
+            }
+        });
+        const ctxDonut = document.getElementById('fleet-donut');
+        new Chart(ctxDonut, {
+            type: 'doughnut',
+            data: {
+                labels: ['Available', 'On Trip', 'In Shop', 'Retired'],
+                datasets: [{
+                    data: [{{ available_count }}, {{ on_trip_count }}, {{ in_shop_count }}, 0],
+    backgroundColor: ['#16a34a', '#2563eb', '#ea580c', '#64748b'],
+        borderWidth: 0,
+                }]
+            },
+    options: {
+        cutout: '65%',
+            plugins: {
+            legend: {
+                position: 'bottom',
+                    labels: {
+                    color: '#5483B3',
+                        padding: 16,
+                            usePointStyle: true,
+                                pointStyleWidth: 8
+                }
+            }
+        },
+        responsive: true,
+            maintainAspectRatio: false
+    }
+        });
+    const ctxBar = document.getElementById('trip-bar');
+    new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [{
+                label: 'Trips',
+                data: [4, 7, 5, 8, 12, 6, 3],
+                backgroundColor: '#5483B3',
+                borderRadius: 6,
+                barPercentage: 0.6
+            }]
+        },
+        options: {
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#5483B3' },
+                    grid: { display: false }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: '#5483B3' },
+                    grid: { color: 'rgba(84,131,179,0.1)' }
+                }
+            },
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+    }) ();
+</script>
+{% endblock %}

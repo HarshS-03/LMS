@@ -1,0 +1,137 @@
+{% extends 'app/base.html' %}
+{% load static %}
+
+{% block title %}FleetFlow — Maintenance{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="breadcrumb">
+        <a href="{% url 'dashboard' %}">FleetFlow</a><span class="sep">›</span><span>Maintenance</span>
+    </div>
+    <div class="page-header-row">
+        <div>
+            <h1>Maintenance Logs</h1>
+            <p class="page-subtitle">RDBMS tracking of service history and shop status</p>
+        </div>
+        <button class="btn btn-primary" onclick="openLogService()">+ Log Service</button>
+    </div>
+</div>
+
+<div class="summary-pills">
+    <div class="summary-pill">In Progress: <strong>{{ in_progress_count }}</strong></div>
+    <div class="summary-pill">Total Spend: <strong>₹{{ total_cost|floatformat:"0" }}</strong></div>
+</div>
+
+<div class="glass-card" style="padding:24px">
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Vehicle</th>
+                    <th>Service Type</th>
+                    <th>Date</th>
+                    <th>Cost</th>
+                    <th>Status</th>
+                    <th>Est. Completion</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td><span class="cell-mono">{{ log.mid }}</span></td>
+                    <td><span class="cell-primary">{{ log.vehicle.name }}</span></td>
+                    <td>{{ log.maintenance_type.name }}</td>
+                    <td>{{ log.date }}</td>
+                    <td><span class="cell-mono">₹{{ log.cost|floatformat:"0" }}</span></td>
+                    <td>
+                        {% if log.status == 'In Progress' %}
+                            <span class="status-pill status-inshop">In Progress</span>
+                        {% else %}
+                            <span class="status-pill status-available">Completed</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ log.est_completion|default:"—" }}</td>
+                    <td>
+                        {% if log.status == 'In Progress' %}
+                        <form method="POST" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="complete_log_id" value="{{ log.id }}">
+                            <button type="submit" class="btn btn-sm btn-success">Complete</button>
+                        </form>
+                        {% else %}
+                            <span style="color:var(--text-muted); font-size: 0.8rem;">Archived</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">No maintenance logs found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<template id="maintenance-modal-template">
+    <form id="maintenanceForm" method="POST" action="{% url 'maintenance' %}" class="form-grid">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Vehicle</label>
+            <select name="vehicle" class="form-select" required>
+                {% for v in vehicles %}
+                <option value="{{ v.id }}">{{ v.name }} ({{ v.plate }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Service Type</label>
+            <select name="maintenance_type" class="form-select" required>
+                {% for t in maintenance_types %}
+                <option value="{{ t.id }}">{{ t.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Date</label>
+            <input type="date" name="date" required class="form-input" value="{{ today|date:'Y-m-d' }}">
+        </div>
+        <div class="form-group">
+            <label>Cost (₹)</label>
+            <input type="number" name="cost" class="form-input" placeholder="0">
+        </div>
+        <div class="form-group">
+            <label>Technician</label>
+            <input type="text" name="technician" class="form-input">
+        </div>
+        <div class="form-group">
+            <label>Est. Completion</label>
+            <input type="date" name="est_completion" class="form-input">
+        </div>
+        <div class="form-group">
+            <label>Status</label>
+            <select name="status" class="form-select">
+                <option value="In Progress">In Progress (Move to Shop)</option>
+                <option value="Completed">Completed (Immediate log)</option>
+            </select>
+        </div>
+        <div class="form-group" style="grid-column: span 2">
+            <label>Notes</label>
+            <textarea name="notes" class="form-input" rows="2"></textarea>
+        </div>
+    </form>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    window.openLogService = function () {
+        const body = document.getElementById('maintenance-modal-template').innerHTML;
+        openModal('Log Maintenance Service', body,
+            `<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+             <button class="btn btn-primary" onclick="document.getElementById('maintenanceForm').submit()">Save Log</button>`);
+    };
+</script>
+{% endblock %}

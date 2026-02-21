@@ -1,0 +1,185 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FleetFlow — Command Center{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link rel="stylesheet" href="{% static 'css/premium.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+    <div class="toast-container" id="toast-container"></div>
+
+    <div class="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+    <div id="app">
+        <nav id="navbar">
+            <button class="hamburger" onclick="toggleSidebar()" aria-label="Toggle menu">
+                <i data-feather="menu"></i>
+            </button>
+
+            <a href="{% url 'dashboard' %}" class="navbar-logo">
+                <i data-feather="truck"></i>
+                <span>FleetFlow</span>
+            </a>
+
+            <div class="navbar-search">
+                <i data-feather="search"></i>
+                <input type="text" placeholder="Search fleet, drivers, trips..." id="global-search"
+                    aria-label="Global search" autocomplete="off">
+                <div class="search-results" id="search-results"></div>
+            </div>
+
+            <div class="navbar-right">
+                <div style="position:relative">
+                    <button class="nav-btn" id="notif-btn" aria-label="Notifications">
+                        <i data-feather="bell"></i>
+                        <span class="badge" id="notif-badge" style="display:none">0</span>
+                    </button>
+                    <div class="dropdown notif-dropdown" id="notif-dropdown">
+                        <div class="dropdown-header">Notifications</div>
+                        <div id="notif-list">
+                            <div class="notif-item">
+                                <div class="notif-desc">System fully operational</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="position:relative">
+                    <div class="user-avatar" id="user-avatar" title="User menu">{{ request.user.username|make_list|first|upper }}</div>
+                    <div class="dropdown" id="user-dropdown">
+                        <div class="dropdown-header" id="user-name-display">{{ request.user.username }}</div>
+                        {% if request.user.profile.role %}
+                        <div class="dropdown-item" id="user-role-display"
+                            style="font-size:11px;color:var(--text-muted);padding-top:0;margin-top:-8px;cursor:default;pointer-events:none">
+                            {{ request.user.profile.role }}</div>
+                        {% endif %}
+                        <div class="dropdown-divider"></div>
+                        <a href="{% url 'settings' %}" class="dropdown-item">
+                            <i data-feather="settings"></i>
+                            Settings
+                        </a>
+                        <a href="{% url 'logout' %}" class="dropdown-item" style="color:var(--red)">
+                            <i data-feather="log-out"></i>
+                            Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div id="app-body">
+            <aside id="sidebar">
+                <div class="sidebar-header">
+                    <i data-feather="truck"></i>
+                    <span class="sidebar-header-text">FleetFlow</span>
+                </div>
+                <nav class="sidebar-nav">
+                    <a href="{% url 'dashboard' %}"
+                        class="nav-item {% if active_page == 'dashboard' %}active{% endif %}" data-page="dashboard">
+                        <i data-feather="grid"></i>
+                        <span class="nav-label">Dashboard</span>
+                    </a>
+                    <a href="{% url 'vehicles' %}" class="nav-item {% if active_page == 'vehicles' %}active{% endif %}"
+                        data-page="vehicles">
+                        <i data-feather="truck"></i>
+                        <span class="nav-label">Vehicles</span>
+                    </a>
+                    <a href="{% url 'trips' %}" class="nav-item {% if active_page == 'trips' %}active{% endif %}"
+                        data-page="trips">
+                        <i data-feather="map-pin"></i>
+                        <span class="nav-label">Trips</span>
+                    </a>
+                    <a href="{% url 'maintenance' %}"
+                        class="nav-item {% if active_page == 'maintenance' %}active{% endif %}" data-page="maintenance">
+                        <i data-feather="tool"></i>
+                        <span class="nav-label">Maintenance</span>
+                    </a>
+                    <a href="{% url 'expenses' %}" class="nav-item {% if active_page == 'expenses' %}active{% endif %}"
+                        data-page="expenses">
+                        <i data-feather="battery"></i>
+                        <span class="nav-label">Fuel &amp; Expenses</span>
+                    </a>
+                    <a href="{% url 'drivers' %}" class="nav-item {% if active_page == 'drivers' %}active{% endif %}"
+                        data-page="drivers">
+                        <i data-feather="user"></i>
+                        <span class="nav-label">Drivers</span>
+                    </a>
+                    <a href="{% url 'analytics' %}"
+                        class="nav-item {% if active_page == 'analytics' %}active{% endif %}" data-page="analytics">
+                        <i data-feather="bar-chart-2"></i>
+                        <span class="nav-label">Analytics</span>
+                    </a>
+                    <a href="{% url 'settings' %}" class="nav-item {% if active_page == 'settings' %}active{% endif %}"
+                        data-page="settings">
+                        <i data-feather="settings"></i>
+                        <span class="nav-label">Settings</span>
+                    </a>
+                </nav>
+                <div class="sidebar-footer">
+                    {% if request.user.profile.role %}
+                    <div
+                        style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);text-align:center;margin-top:8px;padding:4px 8px;background:var(--bg-base);border-radius:var(--radius-sm);">
+                        {{ request.user.profile.role }}
+                    </div>
+                    {% endif %}
+                    <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Collapse sidebar">
+                        <i data-feather="chevron-left"></i>
+                    </button>
+                </div>
+            </aside>
+
+            <main id="main-content">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <script src="{% static 'js/theme.js' %}"></script>
+    <script src="{% static 'js/ui.js' %}"></script>
+    <script>
+        document.getElementById('notif-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('notif-dropdown').classList.toggle('show');
+            document.getElementById('user-dropdown').classList.remove('show');
+        });
+        document.getElementById('user-avatar').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('user-dropdown').classList.toggle('show');
+            document.getElementById('notif-dropdown').classList.remove('show');
+        });
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('show'));
+        });
+
+        (function () {
+            const role = "{{ request.user.profile.role }}";
+            const rolePermissions = {
+                'Fleet Manager': ['dashboard', 'vehicles', 'trips', 'maintenance', 'expenses', 'drivers', 'analytics', 'settings'],
+                'Dispatcher': ['dashboard', 'trips', 'vehicles', 'drivers'],
+                'Safety Officer': ['dashboard', 'drivers', 'analytics', 'maintenance'],
+                'Financial Analyst': ['dashboard', 'expenses', 'analytics', 'maintenance']
+            };
+            const allowed = rolePermissions[role] || rolePermissions['Fleet Manager'];
+            document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+                if (!allowed.includes(item.dataset.page)) item.style.display = 'none';
+            });
+        })();
+
+        feather.replace();
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

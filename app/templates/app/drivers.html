@@ -1,0 +1,133 @@
+{% extends 'app/base.html' %}
+{% load static %}
+
+{% block title %}FleetFlow — Drivers{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="breadcrumb"><a href="{% url 'dashboard' %}">FleetFlow</a><span class="sep">›</span><span>Drivers</span></div>
+    <div class="page-header-row">
+        <div>
+            <h1>Driver Management</h1>
+            <p class="page-subtitle">RDBMS-tracked personnel and compliance</p>
+        </div>
+        <button class="btn btn-primary" onclick="openDriverModal()">+ Add Driver</button>
+    </div>
+</div>
+
+<div class="summary-pills">
+    <div class="summary-pill" style="border-left:3px solid var(--green)">Valid: <strong>{{ available_count }}</strong></div>
+    <div class="summary-pill" style="border-left:3px solid var(--red)">Expired: <strong>{{ expired_count }}</strong></div>
+</div>
+
+<div class="glass-card" style="padding:24px">
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Driver</th>
+                    <th>License</th>
+                    <th>Expiry</th>
+                    <th>Status</th>
+                    <th>Trips</th>
+                    <th>Safety Score</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in drivers %}
+                <tr>
+                    <td><span class="cell-primary">{{ d.name }}</span></td>
+                    <td><span class="cell-mono">{{ d.license_no }}</span></td>
+                    <td>{{ d.expiry }}</td>
+                    <td>
+                        <span class="status-pill {% if d.status == 'Available' %}status-available{% elif d.status == 'On Duty' %}status-ontrip{% else %}status-inshop{% endif %}">
+                            {{ d.status }}
+                        </span>
+                    </td>
+                    <td>{{ d.trips_count }}</td>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <div style="flex:1;height:4px;background:var(--bg-base);border-radius:2px;min-width:60px">
+                                <div style="height:100%;width:{{ d.safety }}%;background:{% if d.safety >= 80 %}var(--green){% elif d.safety >= 60 %}var(--orange){% else %}var(--red){% endif %};border-radius:2px"></div>
+                            </div>
+                            <span style="font-weight:600;font-size:12px">{{ d.safety }}%</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-sm btn-ghost" onclick="openDriverModal('{{ d.id }}', '{{ d.name }}', '{{ d.license_no }}', '{{ d.expiry|date:'Y-m-d' }}', '{{ d.phone }}', '{{ d.status }}', '{{ d.safety }}')">Edit</button>
+                            <form method="POST" onsubmit="return confirm('Delete this driver?');" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="driver_id" value="{{ d.id }}">
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<template id="driver-modal-template">
+    <form id="driverForm" method="POST" action="{% url 'drivers' %}" class="form-grid">
+        {% csrf_token %}
+        <input type="hidden" name="driver_id" id="form-driver-id">
+        <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" name="name" id="form-name" required class="form-input">
+        </div>
+        <div class="form-group">
+            <label>License Number</label>
+            <input type="text" name="license_no" id="form-license" required class="form-input">
+        </div>
+        <div class="form-group">
+            <label>License Expiry</label>
+            <input type="date" name="expiry" id="form-expiry" required class="form-input">
+        </div>
+        <div class="form-group">
+            <label>Phone Number</label>
+            <input type="text" name="phone" id="form-phone" required class="form-input">
+        </div>
+        <div class="form-group">
+            <label>Status</label>
+            <select name="status" id="form-status" class="form-select">
+                <option value="Available">Available</option>
+                <option value="On Duty">On Duty</option>
+                <option value="Off Duty">Off Duty</option>
+                <option value="Suspended">Suspended</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Safety Score (%)</label>
+            <input type="number" name="safety" id="form-safety" class="form-input" min="0" max="100">
+        </div>
+    </form>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    window.openDriverModal = function (id='', name='', license='', expiry='', phone='', status='Available', safety='80') {
+        const body = document.getElementById('driver-modal-template').innerHTML;
+        const title = id ? 'Edit Driver' : 'Add New Driver';
+        
+        openModal(title, body,
+            `<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+             <button class="btn btn-primary" onclick="document.getElementById('driverForm').submit()">Save Driver</button>`);
+
+        if(id) {
+            document.getElementById('form-driver-id').value = id;
+            document.getElementById('form-name').value = name;
+            document.getElementById('form-license').value = license;
+            document.getElementById('form-expiry').value = expiry;
+            document.getElementById('form-phone').value = phone;
+            document.getElementById('form-status').value = status;
+            document.getElementById('form-safety').value = safety;
+        }
+    };
+</script>
+{% endblock %}

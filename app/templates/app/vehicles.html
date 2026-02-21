@@ -1,0 +1,134 @@
+{% extends 'app/base.html' %}
+{% load static %}
+
+
+{% block title %}FleetFlow — Vehicle Registry{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="breadcrumb"><a href="{% url 'dashboard' %}">FleetFlow</a><span class="sep">›</span><span>Vehicles</span>
+    </div>
+    <div class="page-header-row">
+        <div>
+            <h1>Vehicle Registry</h1>
+            <p class="page-subtitle">Manage and monitor all fleet vehicles</p>
+        </div>
+        <button class="btn btn-primary" onclick="openAddVehicle()">+ Add Vehicle</button>
+    </div>
+</div>
+
+<div class="summary-pills">
+    <div class="summary-pill">Total: <strong>{{ total_count }}</strong></div>
+    <div class="summary-pill">Available: <strong>{{ available_count }}</strong></div>
+    <div class="summary-pill">On Trip: <strong>{{ on_trip_count }}</strong></div>
+    <div class="summary-pill">In Shop: <strong>{{ in_shop_count }}</strong></div>
+</div>
+
+<div class="glass-card" style="padding:24px">
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Plate</th>
+                    <th>Type</th>
+                    <th>Region</th>
+                    <th>Capacity</th>
+                    <th>Odometer</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in vehicles %}
+                <tr>
+                    <td><span class="cell-mono">{{ v.vid }}</span></td>
+                    <td><span class="cell-primary">{{ v.name }}</span></td>
+                    <td><span class="cell-mono">{{ v.plate }}</span></td>
+                    <td>{{ v.vehicle_type.name }}</td>
+                    <td>{{ v.region.name }}</td>
+                    <td>{{ v.capacity|floatformat:"0" }} kg</td>
+                    <td><span class="cell-mono">{{ v.odometer }} km</span></td>
+                    <td>
+                        {% if v.status == 'Available' %}<span class="status-pill status-available">Available</span>
+                        {% elif v.status == 'On Trip' %}<span class="status-pill status-ontrip">On Trip</span>
+                        {% elif v.status == 'In Shop' %}<span class="status-pill status-inshop">In Shop</span>
+                        {% else %}<span class="status-pill">{{ v.status }}</span>{% endif %}
+                    </td>
+                    <td>
+                        <div style="display:flex;gap:4px">
+                            <button class="btn-icon" title="Edit" aria-label="Edit"><i data-feather="edit-2"></i></button>
+                            <button class="btn-icon danger" title="Delete" aria-label="Delete"><i data-feather="trash-2"></i></button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">No vehicles found
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add/Edit Modal (Simplified Shell) -->
+<template id="vehicle-modal-template">
+    <form method="POST" action="{% url 'vehicles' %}" class="form-grid">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Vehicle Name</label>
+            <input type="text" name="name" required class="form-input">
+        </div>
+        <div class="form-group">
+            <label>Model</label>
+            <input type="text" name="model_name" required class="form-input">
+        </div>
+        <div class="form-group">
+            <label>Plate</label>
+            <input type="text" name="plate" required class="form-input">
+        </div>
+        <div class="form-group">
+            <label>Type</label>
+            <select name="vehicle_type" class="form-select">
+                {% for t in vehicle_types %}
+                <option value="{{ t.id }}">{{ t.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Region</label>
+            <select name="region" class="form-select">
+                {% for r in regions %}
+                <option value="{{ r.id }}">{{ r.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Capacity (kg)</label>
+            <input type="number" name="capacity" required class="form-input">
+        </div>
+        <div class="form-group">
+            <label>Odometer (km)</label>
+            <input type="number" name="odometer" required class="form-input">
+        </div>
+        <div class="form-group">
+            <label>Cost</label>
+            <input type="number" name="acquisition_cost" class="form-input">
+        </div>
+    </form>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    window.openAddVehicle = function () {
+        const body = document.getElementById('vehicle-modal-template').innerHTML;
+        openModal('Register New Vehicle', body,
+            `<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+             <button class="btn btn-primary" onclick="document.querySelector('.modal form').submit()">Register Vehicle</button>`);
+    };
+</script>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends 'app/base.html' %}
+
+{% block title %}FleetFlow — Driver Profile{% endblock %}
+{% block content %}
+<a href="/drivers/" class="back-link"><i data-feather="arrow-left"></i> Back to Drivers</a>
+
+<div id="driver-profile-content">
+  <p class="text-muted">Loading driver profile...</p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    const driverId = '{{ driver_id }}';
+    const driver = DB.getDriver(driverId);
+    if (!driver) {
+      document.getElementById('driver-profile-content').innerHTML =
+        '<div class="table-empty" style="padding:80px"><p>Driver not found</p><a href="/drivers/" class="btn btn-ghost" style="margin-top:12px">← Back to Drivers</a></div>';
+      return;
+    }
+
+    const isExpired = DB.isExpired(driver);
+    const trips = DB.driverTrips(driverId);
+
+    let html = '';
+    if (isExpired) {
+      html += `<div class="alert alert-danger" style="margin-bottom:20px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      ⛔ <strong>${driver.name}'s</strong> license expired on ${driver.expiry}. Blocked from new assignments.
+    </div>`;
+    }
+
+    html += `<div class="profile-grid">
+    <div class="glass-card profile-card">
+      <div class="profile-ring">
+        ${safetyRing(driver.safety, 100)}
+        <span style="margin-top:8px;font-size:12px;color:var(--text-muted)">Safety Score</span>
+      </div>
+      <h2 style="text-align:center;margin-bottom:4px">${driver.name}</h2>
+      <p style="text-align:center;color:var(--text-muted);font-size:13px;margin-bottom:20px">${statusPill(driver.status)}</p>
+      <div class="profile-info">
+        <div class="profile-info-item">
+          <i data-feather="shield"></i>
+          <div><div class="profile-info-label">License</div><div class="profile-info-value mono">${driver.license}</div></div>
+        </div>
+        <div class="profile-info-item">
+          <i data-feather="calendar"></i>
+          <div><div class="profile-info-label">Expiry</div>
+          <div class="profile-info-value" style="color:${isExpired ? 'var(--red)' : 'var(--green)'}">${driver.expiry} ${isExpired ? '(EXPIRED)' : ''}</div></div>
+        </div>
+        <div class="profile-info-item">
+          <i data-feather="phone"></i>
+          <div><div class="profile-info-label">Phone</div><div class="profile-info-value">${driver.phone}</div></div>
+        </div>
+        <div class="profile-info-item">
+          <i data-feather="home"></i>
+          <div><div class="profile-info-label">Address</div><div class="profile-info-value">${driver.address || '—'}</div></div>
+        </div>
+      </div>
+      <div style="margin-top:16px"><span class="form-label">License Categories</span>
+        <div class="license-cats" style="margin-top:6px">${driver.category.map(c => `<span class="license-cat">${c}</span>`).join('')}</div>
+      </div>
+      <div class="profile-stats">
+        <div class="profile-stat"><div class="profile-stat-value">${driver.trips}</div><div class="profile-stat-label">Total Trips</div></div>
+        <div class="profile-stat"><div class="profile-stat-value">${driver.safety}%</div><div class="profile-stat-label">Safety</div></div>
+        <div class="profile-stat"><div class="profile-stat-value">${trips.filter(t => t.status === 'Completed').length}</div><div class="profile-stat-label">Completed</div></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="glass-card" style="padding:24px">
+        <h3 style="margin-bottom:16px">Trip History</h3>
+        <div id="driver-trips-table"></div>
+      </div>
+      <div class="glass-card chart-card">
+        <h3>Safety Score Trend (6 Months)</h3>
+        <div class="chart-container"><canvas id="safety-trend"></canvas></div>
+      </div>
+    </div>
+  </div>`;
+
+    document.getElementById('driver-profile-content').innerHTML = html;
+
+    renderTable('driver-trips-table', [
+      { header: 'Trip ID', accessor: 'id', render: (r) => `<span class="cell-mono">${r.id}</span>` },
+      { header: 'Route', render: (r) => `${r.origin} → ${r.destination}` },
+      { header: 'Date', accessor: 'date' },
+      { header: 'Cargo', accessor: 'cargo_weight', render: (r) => `${r.cargo_weight} kg` },
+      { header: 'Status', accessor: 'status', render: (r) => statusPill(r.status) },
+      { header: 'Revenue', accessor: 'revenue', render: (r) => `<span class="cell-mono">₹${(r.revenue || 0).toLocaleString('en-IN')}</span>` },
+    ], trips, { showSearch: false, perPage: 5 });
+
+    const trendLabels = [], trendData = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(); d.setMonth(d.getMonth() - i);
+      trendLabels.push(d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }));
+      trendData.push(Math.max(40, Math.min(100, driver.safety + Math.floor((Math.random() - 0.5) * 16))));
+    }
+    trendData[trendData.length - 1] = driver.safety;
+
+    new Chart(document.getElementById('safety-trend'), {
+      type: 'line',
+      data: {
+        labels: trendLabels,
+        datasets: [{
+          label: 'Safety Score', data: trendData,
+          borderColor: '#5483B3', backgroundColor: 'rgba(84,131,179,0.12)',
+          fill: true, tension: 0.3, pointRadius: 4, pointBackgroundColor: '#052659',
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#7DA0C4', font: { size: 11 } }, grid: { display: false } },
+          y: { min: 0, max: 100, ticks: { color: '#7DA0C4', font: { size: 11 } }, grid: { color: 'rgba(84,131,179,0.1)' } }
+        },
+        responsive: true, maintainAspectRatio: false,
+      }
+    });
+  })();
+</script>
+{% endblock %}

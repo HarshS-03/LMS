@@ -1,0 +1,82 @@
+{% extends 'app/base.html' %}
+{% load static %}
+
+{% block title %}FleetFlow — Analytics{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="breadcrumb"><a href="{% url 'dashboard' %}">FleetFlow</a><span class="sep">›</span><span>Analytics</span>
+    </div>
+    <div class="page-header-row">
+        <div>
+            <h1>Operational Analytics & Reports</h1>
+            <p class="page-subtitle">RDBMS-powered financial and performance insights</p>
+        </div>
+    </div>
+</div>
+
+<div class="section-title">
+    <div class="section-bar"></div>
+    <h2>Financial Overview</h2>
+</div>
+<div class="grid-4" id="fin-kpis" style="margin-bottom:24px">
+    <div class="glass-card kpi-card">
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-value">₹{{ total_revenue|floatformat:"0" }}</div>
+        <div class="kpi-trend" style="color:var(--green)">Completed trips only</div>
+    </div>
+    <div class="glass-card kpi-card">
+        <div class="kpi-label">Total Fuel Spend</div>
+        <div class="kpi-value">₹{{ total_fuel|floatformat:"0" }}</div>
+        <div class="kpi-trend" style="color:var(--orange)">All fuel logs</div>
+    </div>
+    <div class="glass-card kpi-card">
+        <div class="kpi-label">Total Maintenance</div>
+        <div class="kpi-value">₹{{ total_maint|floatformat:"0" }}</div>
+        <div class="kpi-trend" style="color:var(--blue)">Service costs</div>
+    </div>
+    <div class="glass-card kpi-card">
+        <div class="kpi-label">Net Margin</div>
+        <div class="kpi-value">{{ net_margin }}%</div>
+        <div class="kpi-trend">(Rev−OpEx)/Rev</div>
+    </div>
+</div>
+
+<div class="glass-card" style="padding:24px;margin-bottom:24px">
+    <h3 style="margin-bottom:16px">Vehicle Financial Breakdown</h3>
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Vehicle</th>
+                    <th>Acquisition</th>
+                    <th>Revenue</th>
+                    <th>Expenses</th>
+                    <th>Efficiency</th>
+                    <th>Cost/km</th>
+                    <th>ROI %</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in vehicles %}
+                <tr>
+                    <td><span class="cell-primary">{{ v.name }}</span><br><span class="cell-mono"
+                            style="font-size:10px">{{ v.plate }}</span></td>
+                    <td><span class="cell-mono">₹{{ v.acquisition_cost|floatformat:"0" }}</span></td>
+                    <td><span class="cell-mono" style="color:var(--green)">₹{{ v.revenue_sum|default:"0" }}</span></td>
+                    <td><span class="cell-mono" style="color:var(--orange)">₹{{ v.expense_sum|default:"0" }}</span></td>
+                    <td><span class="cell-mono">{{ v.fuel_efficiency|default:"0" }} km/L</span></td>
+                    <td><span class="cell-mono">₹{{ v.cost_per_km|default:"0" }}</span></td>
+                    <td><span style="font-weight:700">TBD%</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+</script>
+{% endblock %}
